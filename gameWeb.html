@@ -1,0 +1,202 @@
+<html>
+	<head>
+		<meta http-equiv="X-UA-Compatible" content="IE=Edge"/>
+	</head>
+	<body style = 'margin:0px'>
+		<button id = 'reactDebug' style = 'position:absolute'>React All Elements</button>
+		<canvas id = 'canvas'></canvas>
+		<script>
+			//draw vars 
+			var canvas = document.getElementById("canvas");
+			var c = canvas.getContext("2d");
+
+			var w = canvas.width = innerWidth,
+				h = canvas.height = innerHeight,
+				center = [w / 2, h / 2];
+			
+			//config vars
+			var DIMENSIONS = 5;
+			var SPECIALS = 5;
+			var SPECIAL_START = "a".charCodeAt(0);
+			var POSSIBLE_COLORS = 15;
+			var STARTING_OBJECTS = 10;
+			var SELECTION_AMMOUNT = 4;
+			var AREAS = 2;
+
+			//control vars
+			var gameObjects = [];
+			var SELECTED_OBJS = 0;
+ 
+			//utility funcs
+			function reOrder() {
+				for (var i = 0; i < gameObjects.length - 1; i++) {
+					gameObjects[i].order = i;
+				}
+			}
+			
+			function addGameObjects(count) {
+				for (var i = 0; i < count; i++) {
+					gameObjects.push(new gameObject(i));
+				}
+				reOrder();
+			}
+			
+			//gameplay logic
+			function react() {
+				for (var i = 0; i < gameObjects.length - 1; i++) { 
+					var gameObject = gameObjects[i]
+					if (gameObject.selected) {
+						gameObject.area++;
+						gameObject.area = gameObject.area % AREAS;
+						gameObject.selected = false;
+					}
+				}
+				SELECTED_OBJS = 0;
+				
+				var newGameObjects = [];
+				for (var i = 0; i < gameObjects.length - 1; i++) {
+					var newGameObject = gameObjects[i].react();
+					if (newGameObject !== false) {
+						newGameObjects.push(newGameObject);
+					}
+				}
+				for (var i = 0; i < gameObjects.slice().length - 1; i++) {
+					if (gameObjects[i].reacted) {
+						gameObjects.splice(i, 1);
+					}
+				}
+				gameObjects = gameObjects.concat(newGameObjects);
+				reOrder();
+				
+				for (var i = 0, b = true; i < gameObjects.length - 1 && b; i++) {
+					for (var i2 = 0; i2 < gameObjects.length - 1 && b; i2++) {
+						if (i != i2) {
+							if (gameObjects[i].dimension == gameObjects[i2].dimension) {
+								alert("YOU LOSE!!!");
+								gameObjects = [];
+								addGameObjects(STARTING_OBJECTS);
+								b = false;
+							}
+						}
+					}
+				}
+			}
+			
+			//game object
+			function gameObject(order) {
+				this.dimension = Math.ceil(Math.random() * DIMENSIONS);
+				this.special = String.fromCharCode(Math.floor(Math.random() * SPECIALS) + SPECIAL_START).toUpperCase();
+				
+				this.order = order;
+				this.area = 0;
+				
+				this.hover = false;
+				this.selected = false;
+				this.reacted = false;
+				
+				this.x = 0;
+				this.y = 0;
+				this.hue = 0;
+				
+				this.draw = function() {
+					this.x = (innerWidth / 8) + 10 + ((this.order % 40) * 45);
+					this.y = this.area * ((innerHeight / 8) * 5) + innerHeight / 8 - 10;
+					
+					this.hue = (360 / POSSIBLE_COLORS) * (this.dimension - 1);
+					
+					c.fillStyle = "hsl(" + this.hue + ",100%,50%)";
+					c.fillRect(this.x,this.y,40,40);
+					
+					c.fillStyle = "black";
+					if (this.hover) { c.fillStyle = "white"; }
+					c.font = "20px Arial";
+					c.fillText( this.special, this.x + 3, this.y + 20);
+					
+					c.font = "17px Arial";
+					c.fillStyle = "hsl(0,0%,20%)";
+					if (this.hover) { c.fillStyle = "white"; }
+					c.fillText( this.dimension, this.x + 25, this.y + 35);
+					
+					if (this.selected) {
+						c.strokeStyle = "5px black";
+						c.strokeRect(this.x,this.y,40,40);
+					}
+				}
+				
+				this.isHover = function(cx, cy) {
+					this.hover = cx > this.x && cx < this.x + 40 && cy > this.y && cy < this.y + 40;
+				}
+				
+				this.isSelected = function(cx, cy) {
+					if (cx > this.x && cx < this.x + 40 && cy > this.y && cy < this.y + 40) {
+						if (this.selected) {
+							this.selected = false;
+							SELECTED_OBJS--;
+						} else {
+							if (SELECTED_OBJS < SELECTION_AMMOUNT) {
+								this.selected = true;
+								SELECTED_OBJS++;
+							}
+						}
+					}			
+				}
+				
+				this.react = function() {
+					for (var i = 0; i < gameObjects.length - 1; i++) { 
+						if (i !== this.order && gameObjects[i].area == this.area && !gameObjects[i].reacted && gameObjects[i].special == this.special) {
+							var ngo = new gameObject(0);
+							ngo.dimension = this.dimension + gameObjects[i].dimension;
+							gameObjects[i].reacted = true;
+							this.reacted = true;
+							return ngo;
+						}
+					}
+					return false;
+				}
+			}
+	
+			//listeners
+			canvas.addEventListener("mousemove", function(event) {
+				for (var i = 0; i < gameObjects.length - 1; i++) {
+					gameObjects[i].isHover(event.x, event.y);
+				}
+			});
+
+			canvas.addEventListener("mousedown", function(event) {
+				for (var i = 0; i < gameObjects.length - 1; i++) {
+					gameObjects[i].isSelected(event.x, event.y);
+				}
+			});
+
+			document.getElementById("reactDebug").addEventListener("click", function(event) {
+				react();
+			});
+			
+			addGameObjects(STARTING_OBJECTS);
+
+			//main loop
+			function animate() {
+				requestAnimationFrame(animate);
+				
+				c.clearRect(0,0,innerWidth, innerHeight);
+				
+				c.fillStyle = "rgb(160,230,255)";
+				c.fillRect(0,0,innerWidth,innerHeight);
+				
+				c.fillStyle = "rgb(40,230,230)";
+				c.fillRect( innerWidth / 8, innerHeight / 8 - 20, 
+							(innerWidth / 8) * 6, innerHeight / 8);
+							
+				c.fillRect( innerWidth / 8, ((innerHeight / 8) * 6) - 20, 
+							(innerWidth / 8) * 6, innerHeight / 8);
+							
+				for (var i = 0; i < gameObjects.length - 1; i++) {
+					gameObjects[i].draw();
+				}
+			}
+			
+			//start main loop
+			animate();
+		</script>
+	</body>
+</html>
