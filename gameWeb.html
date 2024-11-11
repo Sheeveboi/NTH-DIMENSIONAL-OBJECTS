@@ -20,7 +20,7 @@
 			var SPECIAL_START = "a".charCodeAt(0);
 			var POSSIBLE_COLORS = 15;
 			var STARTING_OBJECTS = 10;
-			var SELECTION_AMMOUNT = 4;
+			var SELECTION_AMMOUNT = 5;
 			var AREAS = 2;
 
 			//control vars
@@ -29,74 +29,115 @@
  
 			//utility funcs
 			function reOrder() {
-				for (var i = 0; i < gameObjects.length - 1; i++) {
+				for (var i = 0; i < gameObjects.length; i++) {
 					gameObjects[i].order = i;
 				}
 			}
 			
 			function addGameObjects(count) {
 				for (var i = 0; i < count; i++) {
-					gameObjects.push(new gameObject(i));
+					var add = new gameObject(i, 
+											Math.ceil(Math.random() * DIMENSIONS), 
+											String.fromCharCode(Math.floor(Math.random() * SPECIALS) + SPECIAL_START).toUpperCase(),
+											0);
+					gameObjects.push(add);
 				}
+				
 				reOrder();
 			}
 			
 			//gameplay logic
 			function react() {
-				for (var i = 0; i < gameObjects.length - 1; i++) { 
-					var gameObject = gameObjects[i]
-					if (gameObject.selected) {
-						gameObject.area++;
-						gameObject.area = gameObject.area % AREAS;
-						gameObject.selected = false;
+				for (var i = 0; i < gameObjects.length; i++) { 
+					var gb = gameObjects[i];
+					if (gb.selected) {
+						gb.area++;
+						gb.area = gb.area % AREAS;
+						gb.selected = false;
 					}
 				}
 				SELECTED_OBJS = 0;
 				
-				var newGameObjects = [];
-				for (var i = 0; i < gameObjects.length - 1; i++) {
-					var newGameObject = gameObjects[i].react();
-					if (newGameObject !== false) {
-						newGameObjects.push(newGameObject);
+				var newgbs = [];
+				for (var i = 0; i < gameObjects.length; i++) { 
+					var gb = gameObjects[i];
+					for (var i2 = 0; i2 < gameObjects.length; i2++) {
+						var gb2 = gameObjects[i2];
+						
+						if (i !== i2) {
+							if (!gb.reacted && !gb2.reacted) {
+								if (gb.special == gb2.special) {
+									if (gb.area == gb2.area) {
+										
+										gb.reacted = true;
+										gb2.reacted = true;
+										
+										var newgb = new gameObject(0, 
+																gb.dimension + gb2.dimension,
+																String.fromCharCode(Math.floor(Math.random() * SPECIALS) + SPECIAL_START).toUpperCase(),
+																gb.area);
+										
+										newgbs.push(newgb);
+										
+										//alert(i + ", " + i2);
+										
+									}
+								}
+							}
+						}	
 					}
 				}
-				for (var i = 0; i < gameObjects.slice().length - 1; i++) {
+				
+				for (var i = gameObjects.slice().length - 1; i >= 0 ; i--) {
 					if (gameObjects[i].reacted) {
 						gameObjects.splice(i, 1);
 					}
 				}
-				gameObjects = gameObjects.concat(newGameObjects);
+				//alert(newgbs.length);
+				gameObjects = gameObjects.concat(newgbs);
 				reOrder();
 				
-				for (var i = 0, b = true; i < gameObjects.length - 1 && b; i++) {
-					for (var i2 = 0; i2 < gameObjects.length - 1 && b; i2++) {
+				var lose = false;
+				
+				for (var i = 0, b = true; i < gameObjects.length && b; i++) {
+					for (var i2 = 0; i2 < gameObjects.length && b; i2++) {
 						if (i != i2) {
-							if (gameObjects[i].dimension == gameObjects[i2].dimension) {
+							if (gameObjects[i].dimension == gameObjects[i2].dimension && gameObjects[i].area == gameObjects[i2].area) {
 								alert("YOU LOSE!!!");
 								gameObjects = [];
 								addGameObjects(STARTING_OBJECTS);
 								b = false;
+								lose = true;
 							}
 						}
+					}
+				}
+				
+				if (!lose) {
+					if (newgbs.length == 0) {
+						alert("YOU WIN!!");
+						gameObjects = [];
+						addGameObjects(STARTING_OBJECTS);
 					}
 				}
 			}
 			
 			//game object
-			function gameObject(order) {
-				this.dimension = Math.ceil(Math.random() * DIMENSIONS);
-				this.special = String.fromCharCode(Math.floor(Math.random() * SPECIALS) + SPECIAL_START).toUpperCase();
+			function gameObject(order, dimension, special, area) {
+				this.dimension = dimension;
+				this.special = special;
 				
 				this.order = order;
-				this.area = 0;
+				this.area = area;
 				
 				this.hover = false;
 				this.selected = false;
-				this.reacted = false;
 				
 				this.x = 0;
 				this.y = 0;
 				this.hue = 0;
+				
+				this.reacted = false;
 				
 				this.draw = function() {
 					this.x = (innerWidth / 8) + 10 + ((this.order % 40) * 45);
@@ -140,30 +181,17 @@
 						}
 					}			
 				}
-				
-				this.react = function() {
-					for (var i = 0; i < gameObjects.length - 1; i++) { 
-						if (i !== this.order && gameObjects[i].area == this.area && !gameObjects[i].reacted && gameObjects[i].special == this.special) {
-							var ngo = new gameObject(0);
-							ngo.dimension = this.dimension + gameObjects[i].dimension;
-							gameObjects[i].reacted = true;
-							this.reacted = true;
-							return ngo;
-						}
-					}
-					return false;
-				}
 			}
 	
 			//listeners
 			canvas.addEventListener("mousemove", function(event) {
-				for (var i = 0; i < gameObjects.length - 1; i++) {
+				for (var i = 0; i < gameObjects.length; i++) {
 					gameObjects[i].isHover(event.x, event.y);
 				}
 			});
 
 			canvas.addEventListener("mousedown", function(event) {
-				for (var i = 0; i < gameObjects.length - 1; i++) {
+				for (var i = 0; i < gameObjects.length; i++) {
 					gameObjects[i].isSelected(event.x, event.y);
 				}
 			});
@@ -190,7 +218,7 @@
 				c.fillRect( innerWidth / 8, ((innerHeight / 8) * 6) - 20, 
 							(innerWidth / 8) * 6, innerHeight / 8);
 							
-				for (var i = 0; i < gameObjects.length - 1; i++) {
+				for (var i = 0; i < gameObjects.length; i++) {
 					gameObjects[i].draw();
 				}
 			}
